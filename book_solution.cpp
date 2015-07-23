@@ -48,6 +48,7 @@ void addImmigrant()
     {
         std::lock_guard<std::mutex> lock(writeMessage);
         std::cout << "immigrant entered\n";
+        std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
     }
     noJudge.unlock();
 
@@ -57,6 +58,7 @@ void addImmigrant()
     {
         std::lock_guard<std::mutex> lock(writeMessage);
         std::cout << "immigrant checked in\n";
+        std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
     }
     if ((judge == 1) && (immigrantsEntered == immigrantsChecked))
         allSignedIn.unlock();
@@ -71,6 +73,11 @@ void addImmigrant()
 
     noJudge.lock();
     leave();
+    {
+        std::lock_guard<std::mutex> lock(writeMessage);
+        std::cout << "immigrant leave\n";
+        std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
+    }
     noJudge.unlock();
 }
 
@@ -88,6 +95,7 @@ void addJudge()
     {
         std::lock_guard<std::mutex> lock(writeMessage);
         std::cout << "Judge entered\n";
+        std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
     }
     judge = 1;
 
@@ -101,6 +109,7 @@ void addJudge()
         confirmed.unlock();
         immigrantsChecked--;
     }
+    confirmed.unlock();
     immigrantsEntered = 0;
     immigrantsChecked = 0;
 
@@ -108,6 +117,7 @@ void addJudge()
     {
         std::lock_guard<std::mutex> lock(writeMessage);
         std::cout << "Judge left\n";
+        std::cout << "entered " << immigrantsEntered << "checked " << immigrantsChecked << std::endl;
     }
     judge = 0;
 
@@ -143,7 +153,9 @@ int main()
     //std::thread s3(addSpectator);
     //std::thread s4(addSpectator);
 
-    std::this_thread::sleep_for(std::chrono::nanoseconds(900000));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(3000000));
+    std::thread j2(addJudge);
+    std::this_thread::sleep_for(std::chrono::nanoseconds(3000000));
 
     i1.join();
     i2.join();
@@ -157,8 +169,7 @@ int main()
     //s2.join();
     //s3.join();
     //s4.join();
-    std::this_thread::sleep_for(std::chrono::nanoseconds(900000));
-
+    j2.join();
     {
         std::lock_guard<std::mutex> lock(writeMessage);
         std::cout << "Done\n";
