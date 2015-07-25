@@ -2,6 +2,7 @@
 #include <thread>
 #include <mutex>
 #include <iostream>
+#include <chrono>
 
 std::atomic<bool> judgeIn;
 std::atomic<bool> allCheckedIn;
@@ -21,6 +22,7 @@ public:
 
     void run()
     {
+        using namespace std::chrono;
         while (m_immigrantDone == false) {
             switch (m_state) {
                 case ENTER:
@@ -33,6 +35,7 @@ public:
                             std::cout << "IEnter\n";
                         }
                     }
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
                 case CHECKIN:
                     immigrantsChecked++;
@@ -45,6 +48,7 @@ public:
                         std::cout << "ICheckedin\n";
                     }
                     m_state = CONFIRMED;
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
                 case CONFIRMED:
                     if (judgeIn == false)
@@ -53,7 +57,7 @@ public:
                         std::lock_guard<std::mutex> lock(writeMessage);
                         std::cout << "IConfirmed\n";
                     }
-
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
                 case LEAVE:
                     m_immigrantDone = true;
@@ -63,7 +67,7 @@ public:
                         std::lock_guard<std::mutex> lock(writeMessage);
                         std::cout << "ILeave\n";
                     }
-
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
             }
         }
@@ -84,6 +88,7 @@ public:
 
     void run()
     {
+        using namespace std::chrono;
         while (m_judgeIn)
         {
             switch(m_state)
@@ -95,6 +100,7 @@ public:
                         std::lock_guard<std::mutex> lock(writeMessage);
                         std::cout << "JEnter\n";
                     }
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
                 case CONFIRM:
                     if (allCheckedIn == true) {
@@ -104,6 +110,7 @@ public:
                             std::cout << "JConfirm\n";
                         }
                     }
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
                 case LEAVE:
                     {
@@ -112,6 +119,7 @@ public:
                     }
                     m_judgeIn = false;
                     judgeIn = false;
+                    std::this_thread::sleep_for(milliseconds(3));
                     break;
 
             }
@@ -124,6 +132,8 @@ private:
 
 int main()
 {
+    using namespace std::chrono;
+
     immigrantsEntered = 0;
     immigrantsChecked = 0;
     Immigrant immigrant1;
@@ -150,7 +160,7 @@ int main()
     Judge judge;
     std::thread j1(&Judge::run, judge);
 
-    std::this_thread::sleep_for(std::chrono::nanoseconds(3000000));
+    std::this_thread::sleep_for(seconds(3));
 
     t1.join();
     t2.join();
