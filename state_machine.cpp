@@ -28,6 +28,8 @@ public:
                 case ENTER:
                     if (judgeIn == false)
                     {
+                        if (immigrantsEntered == 0)
+                            allCheckedIn = false;
                         immigrantsEntered++;
                         m_state = CHECKIN;
                         {
@@ -136,6 +138,7 @@ int main()
 
     immigrantsEntered = 0;
     immigrantsChecked = 0;
+    allCheckedIn = true;  // in case judge enters before any immigrants
     Immigrant immigrant1;
     std::thread t1(&Immigrant::run, immigrant1 );
 
