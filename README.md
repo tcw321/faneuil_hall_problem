@@ -1,6 +1,17 @@
+
+
 # faneuil_hall_problem
 
-July 25, 2015
+Update July 26, 2015
+
+The book solution does not work with C++ mutexes which require the thread that locks the mutex to unlock it.  On the mac, this manifested as an occasional illegal instruction.  On windows with Visual Studio 2015, the executable actually warned about the problem and crashed.
+
+Added a semaphore implementation from Jeff Preshing https://github.com/preshing/cpp11-on-multicore.  The book solution now runs on mac and windows.  Need to do more testing.
+
+The state machine solution runs on mac and windows.  However, there is still incorrect behavior.  Immigrants that must wait until the judge leaves are eventually leaving and I don't know why.  There is only one judge.
+
+
+Original Checkin July 25, 2015
 
 Attempt at Solutions in C++ for the Faneuil Hall Problem in The Little Book of Semaphores by Allen B. Downey Version 2.1.5
 
