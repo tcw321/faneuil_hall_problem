@@ -2,11 +2,12 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include "sema.h"
 
-std::mutex noJudge;
-std::mutex confirmed;
-std::mutex checked;
-std::mutex allSignedIn;
+Semaphore noJudge(1);
+Semaphore confirmed;
+Semaphore checked(1);
+Semaphore allSignedIn;
 std::mutex writeMessage;
 
 int immigrantsEntered=0;
@@ -42,7 +43,7 @@ void leave()
 
 void addImmigrant()
 {
-    noJudge.lock();
+    noJudge.wait();
     enter();
     immigrantsEntered++;
     {
@@ -50,9 +51,9 @@ void addImmigrant()
         std::cout << "immigrant entered\n";
         std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
     }
-    noJudge.unlock();
+    noJudge.signal();
 
-    checked.lock();
+    checked.wait();
     checkIn();
     immigrantsChecked++;
     {
@@ -61,24 +62,24 @@ void addImmigrant()
         std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
     }
     if ((judge == 1) && (immigrantsEntered == immigrantsChecked))
-        allSignedIn.unlock();
+        allSignedIn.signal();
     else
-        checked.unlock();
+        checked.signal();
 
     sitDown();
-    confirmed.lock();
+    confirmed.wait();
 
     swear();
     getCertificate();
 
-    noJudge.lock();
+    noJudge.wait();
     leave();
     {
         std::lock_guard<std::mutex> lock(writeMessage);
         std::cout << "immigrant leave\n";
         std::cout << "entered " << immigrantsEntered << " checked " << immigrantsChecked << std::endl;
     }
-    noJudge.unlock();
+    noJudge.signal();
 }
 
 void confirm()
@@ -88,8 +89,8 @@ void confirm()
 
 void addJudge()
 {
-    noJudge.lock();
-    checked.lock();
+    noJudge.wait();
+    checked.wait();
 
     enter();
     {
@@ -101,15 +102,11 @@ void addJudge()
 
     if (immigrantsEntered > immigrantsChecked)
     {
-        checked.unlock();
-        allSignedIn.lock();
+        checked.signal();
+        allSignedIn.wait();
     }
     confirm();
-    while (immigrantsChecked !=0) {
-        confirmed.unlock();
-        immigrantsChecked--;
-    }
-    confirmed.unlock();
+    confirmed.signal(immigrantsChecked);
     immigrantsEntered = 0;
     immigrantsChecked = 0;
 
@@ -121,8 +118,8 @@ void addJudge()
     }
     judge = 0;
 
-    checked.unlock();
-    noJudge.unlock();
+    checked.signal();
+    noJudge.signal();
 
 }
 
@@ -131,9 +128,9 @@ void spectate()
 
 void addSpectator()
 {
-    noJudge.lock();
+    noJudge.wait();
     enter();
-    noJudge.unlock();
+    noJudge.signal();
     spectate();
     leave();
 }
