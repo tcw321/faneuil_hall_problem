@@ -1,6 +1,11 @@
-
-
 # faneuil_hall_problem
+
+Update August 1st, 2015
+
+Fixed the state machine solution.  I need to change the logic a little.  Now a second judge will only enter the building if there are immigrants waiting.  A judge will leave the building if there are no immigrants waiting.  New immigrants must wait until all the previous immigrants that have been confirmed leave the building.
+
+I don't like this solution.  Each thread must sleep for a bit to allow other threads to work.  Otherwise, it will take cpu time just looping through the states until a flag is set and could starve another thread.  So there is some tuning involved and it is hard to know if the tuning will always work.
+
 
 Update July 26, 2015
 
