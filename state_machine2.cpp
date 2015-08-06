@@ -33,6 +33,10 @@ private:
     bool m_flag;
 
 public:
+
+    ThreadFlag() : m_flag(false)
+    {}
+
     void set()
     {
         std::lock_guard<std::mutex> lk(m_mutex);
@@ -67,22 +71,27 @@ class Immigrant
 private:
     typedef enum {ENTER,CHECKIN, SITDOWN, CONFIRM, GETCERT, LEAVE } State;
     int m_identifier;
-    State m_state;
-    bool m_running;
     ThreadFlag &m_judgeStatus;
     ThreadFlag &m_allConfirmStatus;
     ThreadFlag &m_allIssuedCertStatus;
-    static std::atomic<int> m_entered;
-    static std::atomic<int> m_confirmed;
+    std::atomic<int> &m_entered;
+    std::atomic<int> &m_confirmed;
+
+    State m_state;
+    bool m_running;
 
 public:
 
-   Immigrant(int id, ThreadFlag &judgeStatus, ThreadFlag &allConfirmStatus, ThreadFlag &allIssuedCertStatus)
+   Immigrant(int id, ThreadFlag &judgeStatus, ThreadFlag &allConfirmStatus, ThreadFlag &allIssuedCertStatus,
+             std::atomic<int> &entered, std::atomic<int> &confirmed)
            : m_identifier(id)
            , m_judgeStatus(judgeStatus)
            , m_allConfirmStatus(allConfirmStatus)
            , m_allIssuedCertStatus(allIssuedCertStatus)
            , m_running(true)
+           , m_state(ENTER)
+           , m_entered(entered)
+           , m_confirmed(confirmed)
    {}
 
    void run()
@@ -96,6 +105,7 @@ public:
                   m_entered++;
                   Log::write("Immigrant Entered", m_identifier);
                   m_state = CHECKIN;
+                  std::this_thread::sleep_for(std::chrono::milliseconds(10));
                   break;
               case CHECKIN:
                   Log::write("Immigrant Checkin", m_identifier);
@@ -110,10 +120,10 @@ public:
               case CONFIRM:
                   Log::write("Immigrant Confirm", m_identifier);
                   m_confirmed++;
-                  m_judgeStatus.waitForSet();
                   if (m_entered == m_confirmed) {
                       m_allConfirmStatus.set();
                   }
+                  m_judgeStatus.waitForSet();
                   m_state = GETCERT;
                   std::this_thread::sleep_for(std::chrono::milliseconds(10));
                   break;
@@ -140,9 +150,6 @@ public:
    }
 };
 
-std::atomic<int> Immigrant::m_entered(0);
-std::atomic<int> Immigrant::m_confirmed(0);
-
 class Judge
 {
 private:
@@ -152,14 +159,16 @@ private:
     ThreadFlag &m_allConfirmStatus;
     ThreadFlag &m_allIssuedCertStatus;
     bool m_running;
+    std::atomic<int> &m_entered;
 
 public:
 
-    Judge(ThreadFlag &judgeStatus, ThreadFlag &allConfirmStatus, ThreadFlag &allIssuedCertStatus)
+    Judge(ThreadFlag &judgeStatus, ThreadFlag &allConfirmStatus, ThreadFlag &allIssuedCertStatus, std::atomic<int> &entered)
     : m_judgeStatus(judgeStatus)
     , m_allConfirmStatus(allConfirmStatus)
     , m_allIssuedCertStatus(allIssuedCertStatus)
     , m_running(true)
+    , m_entered(entered)
     {}
 
     void run()
@@ -169,6 +178,8 @@ public:
                 case ENTER:
                     Log::write("Judge Entered");
                     m_judgeStatus.set();
+                    if (m_entered == 0)
+                        m_state = LEAVE;
                     m_state = CONFIRM;
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     break;
@@ -186,6 +197,7 @@ public:
                     break;
                 case LEAVE:
                     Log::write("Judge Leave");
+                    m_judgeStatus.clear();
                     m_running = false;
                     break;
             }
@@ -199,6 +211,8 @@ private:
     ThreadFlag m_judgeStatus;
     ThreadFlag m_allConfirmStatus;
     ThreadFlag m_allIssuedCertStatus;
+    static std::atomic<int> m_entered;
+    static std::atomic<int> m_confirmed;
 
 public:
     Building()
@@ -206,31 +220,38 @@ public:
 
     void run()
     {
-        Immigrant immigrant1(1, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant1(1, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t1(&Immigrant::run, immigrant1 );
 
-        Immigrant immigrant2(2, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant2(2, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t2(&Immigrant::run, immigrant2 );
 
-        Immigrant immigrant3(3, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant3(3, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t3(&Immigrant::run, immigrant3 );
 
-        Immigrant immigrant4(4, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant4(4, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t4(&Immigrant::run, immigrant4 );
 
-        Immigrant immigrant5(5, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant5(5, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t5(&Immigrant::run, immigrant5 );
 
-        Immigrant immigrant6(6, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant6(6, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t6(&Immigrant::run, immigrant6 );
 
-        Immigrant immigrant7(7, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus);
+        Immigrant immigrant7(7, m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered, m_confirmed);
         std::thread t7(&Immigrant::run, immigrant7 );
 
-        Judge judge(m_judgeStatus, m_allIssuedCertStatus, m_allIssuedCertStatus);
-        std::thread j1(&Judge::run, judge);
+        Judge judge1(m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered);
+        std::thread j1(&Judge::run, judge1);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
+        if (m_entered != 0)
+        {
+            Judge judge2(m_judgeStatus, m_allConfirmStatus, m_allIssuedCertStatus, m_entered);
+            std::thread j2(&Judge::run, judge2);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            j2.join();
+        }
         t1.join();
         t2.join();
         t3.join();
@@ -242,6 +263,9 @@ public:
 
     }
 };
+
+std::atomic<int> Building::m_entered(0);
+std::atomic<int> Building::m_confirmed(0);
 
 
 int main()
